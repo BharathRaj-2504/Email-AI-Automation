@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Automation Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Email Automation Dashboard</h1>
+            <p>Manage your audience and automated campaigns</p>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Add User Form -->
+            <section class="card glass">
+                <h2>Add New Recipient</h2>
+                <form id="addUserForm">
+                    <div class="input-group">
+                        <label for="name">Full Name</label>
+                        <input type="text" id="name" placeholder="John Doe" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" placeholder="john@example.com" required>
+                    </div>
+                    <div class="input-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="scheduleSingle"> Schedule for later
+                        </label>
+                    </div>
+                    <div id="singleTimeGroup" class="input-group hidden">
+                        <label for="singleTime">Send Date & Time</label>
+                        <input type="datetime-local" id="singleTime">
+                    </div>
+                    <button type="submit" id="submitBtn">
+                        <span id="submitBtnText" class="btn-text">Add & Send Welcome Email</span>
+                        <div class="loader hidden"></div>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="card glass">
+                <h2>Campaign Actions</h2>
+                <div class="action-buttons">
+                    <div class="input-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="scheduleBulk"> Schedule bulk campaign
+                        </label>
+                    </div>
+                    <div id="bulkTimeGroup" class="input-group hidden">
+                        <label for="bulkTime">Campaign Date & Time</label>
+                        <input type="datetime-local" id="bulkTime">
+                    </div>
+                    <button id="bulkEmailBtn" class="secondary">
+                        <span id="bulkBtnText" class="btn-text">🚀 Trigger Bulk Email Campaign</span>
+                        <div class="loader hidden"></div>
+                    </button>
+                </div>
+                <div id="statusMessage" class="status-box hidden"></div>
+            </section>
+
+            <!-- Pending Schedules -->
+            <section class="card glass full-width">
+                <div class="section-header">
+                    <h2>📅 Pending Scheduled Emails</h2>
+                </div>
+                <div class="table-container">
+                    <table id="scheduledTable">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Recipient</th>
+                                <th>Subject</th>
+                                <th>Scheduled At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduledList">
+                            <!-- Pending tasks populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- User List -->
+            <section class="card glass full-width">
+                <div class="section-header">
+                    <h2>Audience List</h2>
+                    <button id="refreshBtn" class="icon-btn" title="Refresh lists">🔄</button>
+                </div>
+                <div class="table-container">
+                    <table id="userTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userList">
+                            <!-- Users will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
