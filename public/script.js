@@ -6,6 +6,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMessage = document.getElementById('statusMessage');
     const scheduledList = document.getElementById('scheduledList');
     
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    const performLogout = () => {
+        localStorage.removeItem('adminToken');
+        window.location.href = '/login.html';
+    };
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', performLogout);
+    }
+    
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('adminToken');
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+    };
+
+    const handleAuthError = (response) => {
+        if (response.status === 401) {
+            alert("Session expired or unauthorized. Please log in again.");
+            performLogout();
+            return true;
+        }
+        return false;
+    };
+    
     // Scheduling UI Elements
     const scheduleSingle = document.getElementById('scheduleSingle');
     const singleTimeGroup = document.getElementById('singleTimeGroup');
@@ -31,7 +59,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch and display users
     const fetchUsers = async () => {
         try {
-            const response = await fetch('/users');
+            const response = await fetch('/users', { headers: getAuthHeaders() });
+            if (handleAuthError(response)) return;
+            
             const users = await response.json();
             
             userList.innerHTML = '';
@@ -52,7 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch and display scheduled emails
     const fetchSchedules = async () => {
         try {
-            const response = await fetch('/scheduled-emails');
+            const response = await fetch('/scheduled-emails', { headers: getAuthHeaders() });
+            if (handleAuthError(response)) return;
+            
             const tasks = await response.json();
             
             scheduledList.innerHTML = '';
@@ -127,9 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/send-email', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ name, email, scheduledAt })
             });
+
+            if (handleAuthError(response)) return;
 
             if (response.ok) {
                 showStatus(scheduledAt ? 'Email scheduled successfully! 📅' : 'User added and welcome email sent!', 'success');
@@ -169,13 +203,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/send-bulk-email', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     subject: 'Exclusive Update for You 🚀',
                     message: 'We have some exciting news to share! Check out the attached PDF for more details.',
                     scheduledAt
                 })
             });
+
+            if (handleAuthError(response)) return;
 
             const result = await response.json();
 

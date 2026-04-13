@@ -14,13 +14,19 @@ const scheduledEmailSchema = new mongoose.Schema({
         type: String,
         required: function() { return this.recipientType === "single"; }
     },
-    subject: {
+    templateType: {
         type: String,
         required: true
     },
+    subject: {
+        type: String
+    },
     message: {
-        type: String,
-        required: true
+        type: String
+    },
+    customVariables: {
+        type: Object,
+        default: {}
     },
     scheduledAt: {
         type: Date,

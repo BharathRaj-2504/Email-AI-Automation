@@ -3,114 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Automation Dashboard</title>
+    <title>MailFlow Pro | Admin Dashboard</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script>
+        if (!localStorage.getItem('adminToken')) window.location.href = '/login.html';
+    </script>
 </head>
-<body>
-    <div class="container">
+<body class="dashboard-body">
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <nav class="sidebar">
+        <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary); transition:0.3s;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            MailFlow Pro
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active" data-page="overview">📈 Overview</li>
+            <li class="nav-item" data-page="students">👥 Students</li>
+            <li class="nav-item" data-page="templates">🎨 Templates</li>
+            <li class="nav-item" data-page="logs">📋 History</li>
+        </ul>
+        <div class="sidebar-footer">
+            <li class="nav-item" id="logoutBtn" style="color:var(--accent-red); opacity:0.8;">🔌 Sign Out</li>
+        </div>
+    </nav>
+
+    <div class="main-wrapper">
         <header>
-            <h1>Email Automation Dashboard</h1>
-            <p>Manage your audience and automated campaigns</p>
+            <h2 id="pageTitle" style="font-weight: 600; letter-spacing: -0.5px;">System Overview</h2>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="badge badge-success" style="padding: 8px 16px; border-radius: 12px; font-weight: 500;">
+                    <span class="status-indicator-dot"></span>
+                    System Online
+                </div>
+            </div>
         </header>
 
-        <div class="dashboard-grid">
-            <!-- Add User Form -->
-            <section class="card glass">
-                <h2>Add New Recipient</h2>
-                <form id="addUserForm">
-                    <div class="input-group">
-                        <label for="name">Full Name</label>
-                        <input type="text" id="name" placeholder="John Doe" required>
+        <main id="viewContainer" class="page fade-in">
+            <!-- Content dynamically injected here -->
+        </main>
+    </div>
+
+    <!-- Template Fragments -->
+    <template id="overviewTpl">
+        <div class="dashboard-stats">
+            <div class="card stat-card card-hover fade-in">
+                <h3>Total Students</h3>
+                <div class="value" id="stat-users">-</div>
+                <div class="trend">Active audience</div>
+            </div>
+            <div class="card stat-card card-hover fade-in" style="animation-delay: 0.1s;">
+                <h3>Emails Delivered</h3>
+                <div class="value" style="color:var(--accent-green);" id="stat-delivered">-</div>
+                <div class="trend" style="color:var(--accent-green);">Success rate 100%</div>
+            </div>
+            <div class="card stat-card card-hover fade-in" style="animation-delay: 0.2s;">
+                <h3>System Failures</h3>
+                <div class="value" style="color:var(--accent-red);" id="stat-failed">-</div>
+                <div class="trend">Audit required</div>
+            </div>
+        </div>
+
+        <div class="card card-hover fade-in" style="animation-delay: 0.25s; margin-bottom: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Automation Engine</h2>
+                <div class="badge badge-success" id="automationStatus">Active</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--glass-border);">
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px;">Weekly Schedule Distributor</div>
+                    <div style="font-weight: 600; color: var(--primary);" id="weeklyCronSchedule">0 21 * * 0</div>
+                </div>
+                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--glass-border);">
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px;">Next Distribution</div>
+                    <div style="font-weight: 600;">Sunday at 9:00 PM</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-hover fade-in" style="animation-delay: 0.3s;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2 style="font-size: 1.25rem;">Recent Activity</h2>
+                <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Live Log Stream</span>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>identity</th><th>type</th><th>status</th><th>occurred at</th></tr></thead>
+                    <tbody id="recentLogsList"></tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="studentsTpl">
+        <div class="card fade-in">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 style="font-size: 1.25rem;">Student Directory</h2>
+                <button class="btn btn-secondary" onclick="window.dashboard.loadStudents()">🔄 Refresh Data</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Contact</th>
+                            <th>Verification</th>
+                            <th style="width: 320px;">Automation Feedback</th>
+                            <th>Operations</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="templatesTpl">
+        <div style="display: grid; grid-template-columns: 320px 1fr; gap: 30px;" class="fade-in">
+            <div class="card" style="height: calc(100vh - 200px); overflow-y: auto; padding: 20px;">
+                <h3 style="margin-bottom: 20px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-dim); letter-spacing: 1px;">Automation Library</h3>
+                <div id="tplList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+            </div>
+            
+            <div class="card" style="padding: 35px; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; right: 0; width: 150px; height: 150px; background: radial-gradient(circle, rgba(99, 102, 241, 0.05) 0%, transparent 70%); border-radius: 50%; transform: translate(30%, -30%);"></div>
+                
+                <form id="tplForm" style="position: relative; z-index: 1;">
+                    <!-- Header Section -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; padding-bottom: 25px; border-bottom: 1px solid var(--glass-border);">
+                        <div>
+                            <label>📄 Strategy Name</label>
+                            <input type="text" id="tplName" placeholder="e.g. Weekly Review" required>
+                        </div>
+                        <div>
+                            <label>🔑 System Key</label>
+                            <input type="text" id="tplType" placeholder="key_id" readonly style="opacity: 0.7; cursor: not-allowed; background: rgba(0,0,0,0.1);">
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="email">Email Address</label>
-                        <input type="email" id="email" placeholder="john@example.com" required>
+                    
+                    <!-- Content Section -->
+                    <div style="margin-bottom: 30px;">
+                        <label>✍️ Subject Line</label>
+                        <input type="text" id="tplSubject" placeholder="Email subject..." required style="margin-bottom: 15px;">
+                        
+                        <label>📝 HTML Content Body</label>
+                        <div style="position: relative;">
+                            <textarea id="tplBody" style="height: 280px; font-family: 'Consolas', monospace; font-size: 0.85rem; padding: 20px;"></textarea>
+                            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                <span style="font-size: 0.65rem; color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;">{{name}}</span>
+                                <span style="font-size: 0.65rem; color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;">{{feedback}}</span>
+                                <span style="font-size: 0.65rem; color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;">{{schedule}}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="scheduleSingle"> Schedule for later
+                    
+                    <!-- Attachment Section -->
+                    <div style="background: rgba(99, 102, 241, 0.03); padding: 25px; border-radius: 16px; border: 1px solid rgba(99, 102, 241, 0.1); margin-bottom: 35px;">
+                        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; margin-bottom: 0;">
+                            <input type="checkbox" id="tplHasAttachment" style="width: 18px; height: 18px; cursor: pointer;"> 
+                            <span style="font-weight: 500; color: var(--text-main); font-size: 0.9rem;">Generate Document Attachment</span>
                         </label>
+                        
+                        <div id="pdfContentSection" class="hidden" style="margin-top: 25px; border-top: 1px solid rgba(99, 102, 241, 0.1); padding-top: 20px;">
+                            <label style="color: var(--primary);">📎 PDF Template Layout (HTML)</label>
+                            <textarea id="tplPdfHtml" style="height: 150px; font-family: 'Consolas', monospace; font-size: 0.85rem;"></textarea>
+                            <p style="font-size: 0.7rem; color: var(--text-dim); margin-top: 10px;">PDF is generated via Puppeteer on the high-performance backend.</p>
+                        </div>
                     </div>
-                    <div id="singleTimeGroup" class="input-group hidden">
-                        <label for="singleTime">Send Date & Time</label>
-                        <input type="datetime-local" id="singleTime">
-                    </div>
-                    <button type="submit" id="submitBtn">
-                        <span id="submitBtnText" class="btn-text">Add & Send Welcome Email</span>
-                        <div class="loader hidden"></div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; height: 55px; font-size: 1rem; border-radius: 16px;">
+                        Save Automation Strategy ✅
                     </button>
                 </form>
-            </section>
-
-            <!-- Quick Actions -->
-            <section class="card glass">
-                <h2>Campaign Actions</h2>
-                <div class="action-buttons">
-                    <div class="input-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="scheduleBulk"> Schedule bulk campaign
-                        </label>
-                    </div>
-                    <div id="bulkTimeGroup" class="input-group hidden">
-                        <label for="bulkTime">Campaign Date & Time</label>
-                        <input type="datetime-local" id="bulkTime">
-                    </div>
-                    <button id="bulkEmailBtn" class="secondary">
-                        <span id="bulkBtnText" class="btn-text">🚀 Trigger Bulk Email Campaign</span>
-                        <div class="loader hidden"></div>
-                    </button>
-                </div>
-                <div id="statusMessage" class="status-box hidden"></div>
-            </section>
-
-            <!-- Pending Schedules -->
-            <section class="card glass full-width">
-                <div class="section-header">
-                    <h2>📅 Pending Scheduled Emails</h2>
-                </div>
-                <div class="table-container">
-                    <table id="scheduledTable">
-                        <thead>
-                            <tr>
-                                <th>Type</th>
-                                <th>Recipient</th>
-                                <th>Subject</th>
-                                <th>Scheduled At</th>
-                            </tr>
-                        </thead>
-                        <tbody id="scheduledList">
-                            <!-- Pending tasks populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- User List -->
-            <section class="card glass full-width">
-                <div class="section-header">
-                    <h2>Audience List</h2>
-                    <button id="refreshBtn" class="icon-btn" title="Refresh lists">🔄</button>
-                </div>
-                <div class="table-container">
-                    <table id="userTable">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="userList">
-                            <!-- Users will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+            </div>
         </div>
-    </div>
-    <script src="script.js"></script>
+    </template>
+
+    <template id="logsTpl">
+        <div class="card fade-in">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h2 style="font-size: 1.25rem;">Automation History</h2>
+                <div style="font-size: 0.8rem; color: var(--text-dim);">Live data retention: 30 days</div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>recipient</th><th>category</th><th>status</th><th>execution error</th><th>occurred at</th></tr></thead>
+                    <tbody id="logsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <script src="dashboard.js"></script>
 </body>
 </html>

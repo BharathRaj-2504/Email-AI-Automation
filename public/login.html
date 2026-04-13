@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | MailFlow Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script>
+        if (localStorage.getItem('adminToken')) window.location.href = '/index.html';
+    </script>
+</head>
+<body class="login-body">
+    <div class="card login-card" style="box-shadow: var(--shadow-premium);">
+        <div style="font-size: 3rem; margin-bottom: 20px;">📧</div>
+        <h2 style="margin-bottom: 10px; font-weight: 600;">MailFlow Pro</h2>
+        <p style="color: var(--text-dim); margin-bottom: 30px; font-size: 0.9rem;">Management Dashboard Authentication</p>
+        
+        <form id="loginForm" novalidate>
+            <div style="text-align: left; margin-bottom: 20px;">
+                <label style="display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px;">Username</label>
+                <input type="text" id="username" placeholder="e.g. admin" required>
+                <div id="usernameError" class="status-box error hidden" style="padding: 5px 10px; margin-top: 5px; font-size: 0.75rem;">Username is required</div>
+            </div>
+
+            <div style="text-align: left; margin-bottom: 30px;">
+                <label style="display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px;">Password</label>
+                <div class="password-wrapper">
+                    <input type="password" id="password" placeholder="••••••••" required>
+                    <span class="password-toggle" id="togglePassword">👁️</span>
+                </div>
+                <div id="passwordError" class="status-box error hidden" style="padding: 5px 10px; margin-top: 5px; font-size: 0.75rem;">Password is required</div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" id="loginBtn" style="width: 100%; justify-content: center; padding: 14px;">
+                <span id="btnText">Continue to Dashboard</span>
+                <div class="loader hidden" id="btnLoader"></div>
+            </button>
+        </form>
+
+        <div id="loginStatus" class="status-box hidden" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const togglePassword = document.getElementById('togglePassword');
+        
+        // Password Visibility Toggle
+        togglePassword.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            togglePassword.textContent = type === 'password' ? '👁️' : '🔒';
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Validation
+            let isValid = true;
+            if (!usernameInput.value.trim()) {
+                document.getElementById('usernameError').classList.remove('hidden');
+                isValid = false;
+            } else {
+                document.getElementById('usernameError').classList.add('hidden');
+            }
+            
+            if (!passwordInput.value.trim()) {
+                document.getElementById('passwordError').classList.remove('hidden');
+                isValid = false;
+            } else {
+                document.getElementById('passwordError').classList.add('hidden');
+            }
+
+            if (!isValid) return;
+
+            // UI State
+            const loginBtn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('btnText');
+            const btnLoader = document.getElementById('btnLoader');
+            const statusBox = document.getElementById('loginStatus');
+
+            loginBtn.disabled = true;
+            btnText.classList.add('hidden');
+            btnLoader.classList.remove('hidden');
+            statusBox.classList.add('hidden');
+
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: usernameInput.value, 
+                        password: passwordInput.value 
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('adminToken', data.token);
+                    statusBox.textContent = 'Success! Authenticating...';
+                    statusBox.className = 'status-box success';
+                    statusBox.classList.remove('hidden');
+                    setTimeout(() => window.location.href = '/index.html', 800);
+                } else {
+                    throw new Error(data.message || 'Invalid credentials');
+                }
+            } catch (err) {
+                statusBox.textContent = err.message;
+                statusBox.className = 'status-box error';
+                statusBox.classList.remove('hidden');
+                loginBtn.disabled = false;
+                btnText.classList.remove('hidden');
+                btnLoader.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

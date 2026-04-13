@@ -1,70 +1,69 @@
-# Email AI Automation System
+# MailFlow Pro: Enterprise Email Automation 🚀
 
-A robust Node.js backend designed for automated, personalized bulk email campaigns with dynamically generated PDF attachments.
+MailFlow Pro is an advanced, recruiter-centric email automation suite designed for high-volume student and candidate management. It features a modern dark-mode dashboard, dynamic PDF generation, and a persistent background automation engine.
 
-## 🚀 Overview
-This system automates the process of generating custom certificates or reports for users and sending them via email. It handles everything from database management and PDF rendering to secure email delivery and temporary file cleanup.
+## 🌟 Primary Capabilities
 
-## 🛠 Tech Stack
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database**: MongoDB (Mongoose ODM)
-- **PDF Engine**: Puppeteer (Chromium)
-- **Email Service**: Nodemailer
-- **Scheduler**: Node-Cron
+### 1. Unified Automation Engine ⚙️
+A resilient background worker system powered by `node-cron` that manages persistent automation tasks without requiring server restarts.
+- **Weekly Schedule Distributor**: Automatically synchronizes and sends personalized weekly agendas every Sunday at 9:00 PM.
+- **24-Hour Review Reminders**: Daily morning scan (9:00 AM) that notifies students exactly 24 hours before their scheduled evaluations.
+- **Live Configuration**: Toggle, pause, or reschedule automation frequencies directly from the dashboard.
 
-## 📁 Project Structure
-- `app.js`: Application entry point, server configuration, and cron job scheduling.
-- `controllers/`: Contains the core business logic (`testController.js`) for PDF generation and bulk mailing.
-- `routes/`: Express API endpoints.
-- `models/`: MongoDB schemas (e.g., `User` model).
-- `config/`: External service configurations (Database, Nodemailer).
-- `utils/`: Helper scripts and testing utilities.
-- `temp_pdfs/`: A temporary directory used to store PDFs during the generation-sending cycle (automatically managed).
+### 2. High-Performance Dashboard 🖥️
+A premium, dark-mode administrative interface built with Glassmorphism aesthetics and real-time telemetry.
+- **Student Action Center**: A high-density operation hub for 1-click distributions (Offers, Certificates, Tasks).
+- **Recruitment Lifecycle**: Color-coded application status management (Active, Hold, Selected) with live toggling.
+- **Strategy Management**: In-browser HTML/Email template editor with dynamic variable badges.
 
-## ✨ Key Features
-- **Dynamic PDF Generation**: Uses Puppeteer to convert HTML templates into high-quality PDFs.
-- **Personalization**: Automatically injects user data (like names) into the PDF content and filenames.
-- **Bulk Email Processing**: Loops through database users and sends emails with unique attachments.
-- **Anti-Spam Delay**: Implements a 1-second throttle between emails to comply with mail provider limits.
-- **Absolute Pathing**: Uses `path.resolve` to ensure reliable file handling across different environments.
-- **Self-Cleaning**: Automatically deletes temporary PDFs immediately after they are sent to maintain server health.
-- **Automated Scheduling**: Includes a pre-configured CRON job for periodic updates.
+### 3. Dynamic Document Generation 📄
+Integrated Puppeteer-based PDF engine for on-the-fly professional document distribution.
+- **Academic Certificates**: Premium milestone certificates with automatic course/date binding.
+- **Official Offer Letters**: Professional recruitment documents with company-standard layouts.
+- **Project Briefings**: Individualized task allocation documents with unique deadlines and descriptions.
 
-## ⚙️ Setup & Installation
+### 4. Template Strategy
+Universal placeholder support (`{{name}}`, `{{taskTitle}}`, `{{reviewDate}}`, etc.) across 15+ pre-seeded templates, including:
+- Onboarding & Hold Notifications
+- First Review Scheduling
+- Technical Task Allocations
+- Achievement Certification
 
-### 1. Environment Variables
-Create a `.env` file in the root with:
+## 🛠️ Technical Stack
+- **Core**: Node.js, Express
+- **Database**: MongoDB (Mongoose)
+- **Scheduling**: Node-Cron (Persistent config in DB)
+- **PDF Engine**: Puppeteer
+- **UI**: Vanilla HTML5/CSS3 (Glassmorphism & Dark Modern)
+- **Security**: JWT-based Authentication
+
+## 🚥 Setup & Deployment
+
+### 1. Environment Configuration
+Create a `.env` file in the root directory:
 ```env
 PORT=3000
 MONGO_URI=your_mongodb_connection_string
-EMAIL_USER=your_email@gmail.com
+EMAIL_USER=your_smtp_user
 EMAIL_PASS=your_app_password
+JWT_SECRET=your_secure_secret
 ```
 
-### 2. Install Dependencies
+### 2. Installation
 ```bash
 npm install
-```
-
-### 3. Puppeteer Browser Install
-Since Puppeteer requires a browser binary, run:
-```bash
 npx puppeteer browsers install chrome
 ```
 
-## 🚥 Usage
+### 3. Initialize Templates
+```bash
+node scripts/seedTemplates.js
+```
 
-### API Endpoints
-- `POST /save-multiple-users`: Seed the database with a JSON list of users.
-- `POST /send-bulk-email`: Manually trigger a bulk email blast.
-- `POST /send-email`: Send a single test email.
+### 4. Start Application
+```bash
+npm start
+```
 
-### Automated Cron
-By default, the system runs a bulk update **every minute** (defined in `app.js`). You can modify the cron syntax to match your desired frequency (e.g., daily or weekly).
-
-## 🤖 AI Assistance Notes
-This project emphasizes **asynchronous reliability**. When modifying the PDF or Email logic, ensure that:
-1. `generatePDF` completely finishes before `sendMail` is called.
-2. The `temp_pdfs` directory is used for all intermediate files.
-3. Errors are caught per-user in loops to prevent a single failure from stopping the entire batch.
+## 🤖 Development Note
+This system uses a **Worker-Queue pattern**. All scheduled logic is centralized in `models/ScheduledEmail.js`. The `CronService` synchronizes memory-resident jobs with the `CronConfig` collection in MongoDB for persistence across reloads.
