@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
-    name: String,
-    email: String,
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
     status: {
         type: String,
         enum: ["pending", "sent", "failed"],
@@ -15,13 +15,23 @@ const userSchema = new mongoose.Schema({
     },
     lastSentAt: Date,
     metadata: {
-        type: Object,
-        default: {}
+        feedback: String,
+        nextReviewDate: String,
+        reviewDate: String,
+        timeSlot: String,
+        courseName: String,
+        completionDate: String,
+        jobTitle: String,
+        joiningDate: String,
+        taskTitle: String,
+        taskDescription: String,
+        deadline: String,
+        schedule: String
     },
     reviewCompleted: {
         type: Boolean,
         default: false
     }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

@@ -10,7 +10,7 @@ const routes = require("./routes/index"); // ✅ import
 app.use("/", routes); // ✅ connect routes
 
 const cronService = require("./services/cronService");
-const { executeBulkEmail, executeSingleEmail } = require("./controllers/testController");
+const { executeBulkEmail, executeSingleEmail, executeDailyCrawler } = require("./controllers/testController");
 const ScheduledEmail = require("./models/ScheduledEmail");
 const User = require("./models/User");
 
@@ -51,35 +51,7 @@ const mainWorkerLogic = async () => {
     }
 };
 
-// 2. Weekly Schedule Worker (Automatically fires every weekend)
-const weeklyScheduleLogic = async () => {
-    try {
-        console.log("\n🗓️ [Weekly Worker] Starting global schedule distribution...");
-        const users = await User.find({ "metadata.schedule": { $exists: true, $ne: "" } });
-        
-        if (users.length === 0) {
-            return console.log("[Weekly Worker] No users found with schedule metadata. Skipping.");
-        }
-
-        console.log(`[Weekly Worker] Processing ${users.length} users...`);
-
-        for (const user of users) {
-            try {
-                // We pass the schedule from metadata as a custom variable to ensure it's available for rendering
-                await executeSingleEmail(user.name, user.email, "weekly_schedule", { 
-                    schedule: user.metadata.schedule 
-                });
-            } catch (err) {
-                console.error(`[Weekly Worker] Failed for ${user.email}:`, err.message);
-            }
-        }
-        console.log("[Weekly Worker] Distribution complete! ✅");
-    } catch (error) {
-        console.error("❌ [Weekly Worker Critical Error]:", error.message);
-    }
-};
-
-// 3. Review Reminder Worker (Schedules reminders 24h before reviewDate)
+// 2. Review Reminder Worker (Schedules reminders 24h before reviewDate)
 const reviewReminderLogic = async () => {
     try {
         console.log("\n⏰ [Reminder Worker] Checking for upcoming reviews...");
@@ -116,7 +88,7 @@ const reviewReminderLogic = async () => {
 // 🚀 Start Registered Jobs
 const workerMap = {
     'main_worker': mainWorkerLogic,
-    'weekly_schedule': weeklyScheduleLogic,
+    'daily_crawler': executeDailyCrawler,
     'review_reminder': reviewReminderLogic
 };
 

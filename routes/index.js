@@ -19,7 +19,11 @@ const {
     triggerFirstReview,
     triggerTaskAllocation,
     triggerHoldMail,
-    updateUserStatus
+    updateUserStatus,
+    addStudent,
+    deleteStudent,
+    sendBulkHoldMail,
+    triggerDailyCrawler
 } = require("../controllers/testController");
 const { login } = require("../controllers/authController");
 const authMiddleware = require("../utils/authMiddleware");
@@ -32,7 +36,11 @@ router.post("/send-email", authMiddleware, sendEmail);
 router.post("/save-multiple-users", authMiddleware, saveMultipleUsers);
 router.post("/send-bulk-email", authMiddleware, sendBulkEmail);
 router.get("/users", authMiddleware, getUsers);
+router.post("/students", authMiddleware, addStudent);
+router.delete("/students/:id", authMiddleware, deleteStudent);
+router.post("/send-bulk-hold", authMiddleware, sendBulkHoldMail);
 router.get("/scheduled-emails", authMiddleware, getScheduledEmails);
+
 
 // Dashboard & Metrics
 router.get("/stats", authMiddleware, getDashboardStats);
@@ -54,5 +62,6 @@ router.post("/trigger-first-review", authMiddleware, triggerFirstReview);
 router.post("/trigger-task-allocation", authMiddleware, triggerTaskAllocation);
 router.post("/trigger-hold-mail", authMiddleware, triggerHoldMail);
 router.patch("/users/:id/status", authMiddleware, updateUserStatus);
+router.post("/trigger-daily-crawler", authMiddleware, triggerDailyCrawler);
 
 module.exports = router;

@@ -8,6 +8,31 @@ const { render } = require("../utils/templateService");
 const cronService = require("../services/cronService");
 const fs = require("fs");
 const path = require("path");
+const puppeteer = require("puppeteer");
+
+// Add Student
+const addStudent = async (req, res) => {
+    try {
+        const { name, email, metadata } = req.body;
+        const student = new User({ name, email, metadata });
+        await student.save();
+        res.status(201).json({ success: true, student });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Delete Student
+const deleteStudent = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await User.findByIdAndDelete(id);
+        res.status(200).json({ success: true, message: "Student deleted" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 
 // Helper function to create a delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -60,8 +85,9 @@ const executeSingleEmail = async (name, email, templateType = "notification", cu
         };
 
         if (pdfPath) {
+            const safeName = user.name.replace(/[^a-z0-9]/gi, "_");
             mailOptions.attachments = [{
-                filename: `${template.name.replace(/\s+/g, "_")}.pdf`,
+                filename: `${safeName}.pdf`,
                 path: pdfPath
             }];
         }
@@ -206,9 +232,10 @@ const executeBulkEmail = async (templateType = "notification", customVariables =
                 };
 
                 if (pdfPath) {
+                    const safeName = user.name.replace(/[^a-z0-9]/gi, "_");
                     mailOptions.attachments = [
                         {
-                            filename: `${template.name.replace(/\s+/g, "_")}.pdf`,
+                            filename: `${safeName}.pdf`,
                             path: pdfPath
                         }
                     ];
@@ -302,7 +329,7 @@ const getScheduledEmails = async (req, res) => {
     }
 };
 
-const puppeteer = require("puppeteer");
+// --- Dashboard & Management Endpoints ---
 
 const generatePDF = async (name, html) => {
     const browser = await puppeteer.launch({
@@ -645,12 +672,82 @@ const updateUserStatus = async (req, res) => {
     }
 };
 
+const sendBulkHoldMail = async (req, res) => {
+    try {
+        const usersOnHold = await User.find({ applicationStatus: "hold" });
+        if (usersOnHold.length === 0) {
+            return res.status(404).json({ success: false, message: "No students on hold status found." });
+        }
+
+        const template = await EmailTemplate.findOne({ type: "hold_mail" });
+        if (!template) return res.status(404).json({ success: false, message: "Hold mail template not found." });
+
+        for (const user of usersOnHold) {
+            await executeSingleEmail(user.name, user.email, "hold_mail");
+        }
+
+        res.json({ success: true, message: `Bulk hold mail sent to ${usersOnHold.length} candidates.` });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// --- Daily Crawler Core Logic (Shared for Cron & Manual) ---
+const executeDailyCrawler = async () => {
+    const now = new Date();
+    const day = now.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
+    
+    if (day === 0 || day === 6) {
+        return { message: "🗓️ [Daily Crawler] Weekend - Skipping automated distribution." };
+    }
+
+    const subjects = {
+        1: "Monday Momentum: Setting Your Weekly Goals",
+        2: "Technical Tuesday: Deep Dive into Your Progress",
+        3: "Mid-Week Sync: Stay Focused, Stay Ahead",
+        4: "Progress Thursday: Preparing for Review",
+        5: "Friday Finale: Reflect and Celebrate Accomplishments"
+    };
+
+    const subject = subjects[day];
+    console.log(`\n🗓️ [Daily Crawler] Triggering for: ${subject}`);
+
+    const activeUsers = await User.find({ applicationStatus: "active" });
+    if (activeUsers.length === 0) {
+        return { message: "No active students found. Skipping." };
+    }
+
+    for (const user of activeUsers) {
+        try {
+            await executeSingleEmail(user.name, user.email, "notification", { 
+                subject: subject,
+                currentDay: now.toLocaleDateString('en-US', { weekday: 'long' })
+            });
+        } catch (err) {
+            console.error(`[Daily Crawler] Failed for ${user.email}:`, err.message);
+        }
+    }
+    return { success: true, count: activeUsers.length };
+};
+
+// Express Wrapper for Manual Trigger
+const triggerDailyCrawler = async (req, res) => {
+    try {
+        const result = await executeDailyCrawler();
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = { 
     sendEmail, 
     saveMultipleUsers, 
     sendBulkEmail, 
     executeBulkEmail, 
     executeSingleEmail,
+    executeDailyCrawler,
+    triggerDailyCrawler,
     getUsers,
     getScheduledEmails,
     upsertTemplate,
@@ -665,5 +762,8 @@ module.exports = {
     triggerFirstReview,
     triggerTaskAllocation,
     triggerHoldMail,
-    updateUserStatus
+    updateUserStatus,
+    addStudent,
+    deleteStudent,
+    sendBulkHoldMail
 };

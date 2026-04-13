@@ -1,0 +1,5 @@
+1. Email is not sending properly 
+2.Structure of sending isn't there
+3. improve stability
+4. login page is shit
+5. demo working works fine
