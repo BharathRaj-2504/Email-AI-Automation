@@ -26,6 +26,7 @@ const {
     triggerDailyCrawler
 } = require("../controllers/testController");
 const { login } = require("../controllers/authController");
+const { chat } = require("../controllers/aiController");
 const authMiddleware = require("../utils/authMiddleware");
 
 // Admin Login Route
@@ -63,5 +64,8 @@ router.post("/trigger-task-allocation", authMiddleware, triggerTaskAllocation);
 router.post("/trigger-hold-mail", authMiddleware, triggerHoldMail);
 router.patch("/users/:id/status", authMiddleware, updateUserStatus);
 router.post("/trigger-daily-crawler", authMiddleware, triggerDailyCrawler);
+
+// AI Chat Integration
+router.post("/ai/chat", authMiddleware, chat);
 
 module.exports = router;

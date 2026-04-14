@@ -3,7 +3,7 @@
     const token = localStorage.getItem('adminToken');
 
     const state = {
-        currentPage: 'overview',
+        currentPage: 'dashboard',
         students: [],
         templates: [],
         logs: [],
@@ -66,7 +66,6 @@
             return res.json();
         } else {
             const text = await res.text();
-            console.error('Non-JSON response received:', text);
             return { success: false, message: text || `Server Error (${res.status})` };
         }
     }
@@ -74,7 +73,7 @@
     const dashboard = {
         init() {
             this.bindEvents();
-            this.switchPage('overview');
+            this.switchPage('dashboard');
             this.refreshStats();
         },
 
@@ -99,44 +98,139 @@
             });
 
             const container = document.getElementById('viewContainer');
-            const tpl = document.getElementById(`${page}Tpl`).content.cloneNode(true);
+            const template = document.getElementById(`${page}Tpl`);
+            if (!template) return;
+
+            const content = template.content.cloneNode(true);
             container.innerHTML = '';
-            container.appendChild(tpl);
+            container.appendChild(content);
 
-            document.getElementById('pageTitle').innerText = 
-                page.charAt(0).toUpperCase() + page.slice(1).replace('tpl', '');
+            // Update Page Title
+            const labels = {
+                'dashboard': 'AI Command Center',
+                'students': 'Student Database',
+                'actions': 'Automation Workflows',
+                'templates': 'Template Configuration',
+                'logs': 'Execution History'
+            };
+            document.getElementById('pageTitle').innerText = labels[page] || page;
 
-            // Load Data
-            if (page === 'overview') this.loadOverview();
+            // Page Specific Logic
+            if (page === 'dashboard') {
+                this.refreshStats();
+                this.loadDashboardActivity();
+                this.initAiChat();
+            }
             if (page === 'students') this.loadStudents();
             if (page === 'templates') this.loadTemplates();
             if (page === 'logs') this.loadLogs();
         },
 
-        async loadOverview() {
-            const result = await apiFetch('/logs');
-            const tbody = document.getElementById('recentLogsList');
-            tbody.innerHTML = result.slice(0, 10).map(log => `
-                <tr>
-                    <td>${log.recipientEmail}</td>
-                    <td><span class="badge badge-warning">${log.templateType}</span></td>
-                    <td><span class="badge ${log.status === 'success' ? 'badge-success' : 'badge-danger'}">${log.status}</span></td>
-                    <td>${new Date(log.sentAt).toLocaleString()}</td>
-                </tr>
-            `).join('');
-            this.refreshStats();
+        async refreshStats() {
+            try {
+                const stats = await apiFetch('/stats');
+                const update = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = val || 0;
+                };
+                update('stat-students', stats.totalUsers);
+                update('stat-delivered', stats.successCount);
+                update('stat-failed', stats.failureCount);
+                update('stat-scheduled', stats.pendingTasks);
+            } catch (e) {}
         },
 
-        async refreshStats() {
-            const stats = await apiFetch('/stats');
-            if (document.getElementById('stat-students')) {
-                document.getElementById('stat-students').innerText = stats.totalUsers || 0;
-                document.getElementById('stat-delivered').innerText = stats.successCount || 0;
-                document.getElementById('stat-failed').innerText = stats.failureCount || 0;
-                document.getElementById('stat-scheduled').innerText = stats.pendingTasks || 0;
+        async loadDashboardActivity() {
+            const logs = await apiFetch('/logs');
+            const container = document.getElementById('recentLogsList');
+            if (!container) return;
+
+            container.innerHTML = logs.slice(0, 5).map(l => `
+                <div class="log-entry-compact">
+                    <div class="top">
+                        <span class="email">${l.recipientEmail}</span>
+                        <span class="status" style="color:${l.status === 'success' ? 'var(--accent-emerald)' : 'var(--accent-rose)'}">${l.status.toUpperCase()}</span>
+                    </div>
+                    <div style="opacity:0.6; font-size:10px;">${l.templateType} • ${new Date(l.sentAt).toLocaleTimeString()}</div>
+                </div>
+            `).join('');
+        },
+
+        // --- AI CHAT LOGIC ---
+        initAiChat() {
+            const input = document.getElementById('aiChatInput');
+            const btn = document.getElementById('sendAiChat');
+            if (!input || !btn) return;
+
+            const sendMessage = () => {
+                const text = input.value.trim();
+                if (text) {
+                    this.sendChatMessage(text);
+                    input.value = '';
+                }
+            };
+
+            input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+            btn.onclick = sendMessage;
+
+            // Hints binding
+            document.querySelectorAll('.chat-hints span').forEach(hint => {
+                hint.onclick = () => {
+                    input.value = hint.innerText;
+                    input.focus();
+                };
+            });
+        },
+
+        async sendChatMessage(message) {
+            this.addChatMessage('user', message);
+            
+            try {
+                const res = await apiFetch('/ai/chat', {
+                    method: 'POST',
+                    body: JSON.stringify({ message })
+                });
+
+                if (res.success && res.results) {
+                    res.results.forEach(result => {
+                        let type = 'system';
+                        if (result.type === 'success') type = 'ai-result';
+                        if (result.type === 'error') type = 'ai-error';
+                        
+                        let content = result.content;
+                        if (result.type === 'clarification' && result.options) {
+                            content += `<div class="clarification-options">
+                                ${result.options.map(opt => `
+                                    <button class="btn-option" onclick="window.dashboard.sendChatMessage('I mean ${opt.label}')">
+                                        🔘 ${opt.label}
+                                    </button>
+                                `).join('')}
+                            </div>`;
+                        }
+                        
+                        this.addChatMessage(type, content);
+                        if (result.type === 'success') {
+                            this.refreshStats();
+                            this.loadDashboardActivity();
+                        }
+                    });
+                }
+            } catch (err) {
+                this.addChatMessage('ai-error', 'Connectivity issue: ' + err.message);
             }
         },
 
+        addChatMessage(type, content) {
+            const container = document.getElementById('chatMessages');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerHTML = content;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        },
+
+        // --- STUDENT MANAGEMENT ---
         async loadStudents() {
             showLoading();
             try {
@@ -148,20 +242,15 @@
                         <tr>
                             <td><b>${s.name}</b></td>
                             <td>${s.email}</td>
-                            <td><span class="badge ${s.status === 'sent' ? 'badge-success' : 'badge-warning'}">${s.status || 'idle'}</span></td>
                             <td><span class="badge ${s.applicationStatus === 'active' ? 'badge-success' : 'badge-danger'}">${s.applicationStatus}</span></td>
-                            <td style="display: flex; gap: 8px;">
-                                <button class="btn btn-primary" style="padding: 5px 12px; font-size: 11px;" onclick="window.dashboard.openIndividualSendModal('${s._id}')">🚀 Send Mail</button>
-                                <button class="btn btn-secondary" style="padding: 5px 10px;" onclick="window.dashboard.deleteStudent('${s._id}')">🗑️</button>
+                            <td>
+                                <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="window.dashboard.openIndividualSendModal('${s._id}')">🚀 Send</button>
+                                <button class="btn btn-secondary" style="padding:4px 10px;" onclick="window.dashboard.deleteStudent('${s._id}')">🗑️</button>
                             </td>
                         </tr>
                     `).join('');
                 }
-            } catch (err) {
-                showToast('Failed to load students: ' + err.message, 'error');
-            } finally {
-                hideLoading();
-            }
+            } finally { hideLoading(); }
         },
 
         openIndividualSendModal(id) {
@@ -170,183 +259,80 @@
             state.targetStudent = s;
             document.getElementById('targetRecipientName').innerText = s.name;
             document.getElementById('targetRecipientEmail').innerText = s.email;
-            document.getElementById('individualMailType').value = '';
-            document.getElementById('dynamicFieldsContainer').innerHTML = '<p style="color:var(--text-dim);">Pick a template above to see dynamic fields.</p>';
-            
             showModal('individualSendModal');
-
             document.getElementById('sendIndividualBtn').onclick = () => this.submitIndividualSend();
         },
 
         updateDynamicFields() {
             const type = document.getElementById('individualMailType').value;
             const container = document.getElementById('dynamicFieldsContainer');
-            if (!type) {
-                container.innerHTML = '';
-                return;
-            }
-
             const fields = {
-                'review_feedback': [
-                    { label: 'Review Feedback', key: 'feedback', type: 'textarea' },
-                    { label: 'Next Review Date', key: 'nextReviewDate', type: 'text', placeholder: 'e.g. 20th Oct 2024' }
-                ],
-                'offer_letter': [
-                    { label: 'Job Title', key: 'jobTitle', type: 'text' },
-                    { label: 'Joining Date', key: 'joiningDate', type: 'text' }
-                ],
-                'certificate': [
-                    { label: 'Course Name', key: 'courseName', type: 'text' },
-                    { label: 'Completion Date', key: 'completionDate', type: 'text' }
-                ],
-                'first_review': [
-                    { label: 'Review Date', key: 'reviewDate', type: 'text' },
-                    { label: 'Time Slot', key: 'timeSlot', type: 'text', placeholder: 'e.g. 2:00 PM - 3:00 PM' }
-                ],
-                'task_allocation': [
-                    { label: 'Task Title', key: 'taskTitle', type: 'text' },
-                    { label: 'Task Description', key: 'taskDescription', type: 'textarea' },
-                    { label: 'Deadline', key: 'deadline', type: 'text' }
-                ],
-                'review_reminder': [
-                    { label: 'Review Date', key: 'reviewDate', type: 'text' }
-                ],
-                'weekly_schedule': [
-                    { label: 'Personalized Schedule', key: 'schedule', type: 'textarea', placeholder: 'Monday: Java...\nTuesday: Python...' }
-                ],
-                'hold_mail': []
+                'review_feedback': [{ label: 'Feedback', key: 'feedback', type: 'textarea' }, { label: 'Date', key: 'nextReviewDate', type: 'text' }],
+                'offer_letter': [{ label: 'Role', key: 'jobTitle', type: 'text' }, { label: 'Date', key: 'joiningDate', type: 'text' }],
+                'certificate': [{ label: 'Course', key: 'courseName', type: 'text' }, { label: 'Date', key: 'completionDate', type: 'text' }]
             };
-
-            const typeFields = fields[type] || [];
-            if (typeFields.length === 0) {
-                container.innerHTML = '<p style="color:var(--accent-emerald);">This template does not require additional data. Click send to proceed.</p>';
-                return;
-            }
-
-            container.innerHTML = typeFields.map(f => `
+            const active = fields[type] || [];
+            container.innerHTML = active.map(f => `
                 <div class="field-group">
                     <label>${f.label}</label>
-                    ${f.type === 'textarea' 
-                        ? `<textarea id="dyn_${f.key}" placeholder="${f.placeholder || ''}"></textarea>`
-                        : `<input type="text" id="dyn_${f.key}" placeholder="${f.placeholder || ''}">`
-                    }
+                    ${f.type === 'textarea' ? `<textarea id="dyn_${f.key}"></textarea>` : `<input type="text" id="dyn_${f.key}">`}
                 </div>
-            `).join('');
+            `).join('') || '<p style="opacity:0.5;">No extra fields required.</p>';
         },
 
         async submitIndividualSend() {
-            const typeValue = document.getElementById('individualMailType').value;
-            if (!typeValue) return showToast('Please select an email type', 'error');
-
-            confirmAction('Confirm Dispatch', `Send the ${typeValue.replace('_', ' ')} email to ${state.targetStudent.name}?`, async () => {
-                const s = state.targetStudent;
-                const container = document.getElementById('dynamicFieldsContainer');
-                const inputs = container.querySelectorAll('input, textarea');
-                const customVariables = {};
-                
-                inputs.forEach(input => {
-                    const key = input.id.replace('dyn_', '');
-                    customVariables[key] = input.value;
-                });
-
-                showLoading();
-                try {
-                    const res = await apiFetch('/send-email', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            email: s.email,
-                            name: s.name,
-                            templateType: typeValue,
-                            customVariables: customVariables
-                        })
-                    });
-
-                    // Flexible success check (backend returns string or object)
-                    const isSuccess = res.success || (typeof res === 'string' && res.toLowerCase().includes('sent')) || (res.message && res.message.toLowerCase().includes('sent'));
-
-                    if (isSuccess) {
-                        closeModal('individualSendModal');
-                        showToast('Email sent successfully! 🚀');
-                        this.loadStudents();
-                        this.refreshStats();
-                    } else {
-                        showToast('Failed to send: ' + (res.error || res.message || 'Unknown Server Error'), 'error');
-                    }
-                } catch (err) {
-                    showToast('Communication Error: ' + err.message, 'error');
-                } finally {
-                    hideLoading();
-                }
+            const type = document.getElementById('individualMailType').value;
+            if (!type) return;
+            const customVariables = {};
+            document.querySelectorAll('#dynamicFieldsContainer input, #dynamicFieldsContainer textarea').forEach(i => {
+                customVariables[i.id.replace('dyn_', '')] = i.value;
             });
+
+            showLoading();
+            try {
+                await apiFetch('/send-email', {
+                    method: 'POST',
+                    body: JSON.stringify({ email: state.targetStudent.email, name: state.targetStudent.name, templateType: type, customVariables })
+                });
+                closeModal('individualSendModal');
+                showToast('Dispatched! 🚁');
+                this.refreshStats();
+            } finally { hideLoading(); }
         },
 
-        async loadOverview() {
-            const result = await apiFetch('/logs');
-            const tbody = document.getElementById('recentLogsList');
-            if (!tbody) return;
-            
-            tbody.innerHTML = result.slice(0, 10).map(log => `
-                <tr>
-                    <td><b>${log.recipientEmail}</b></td>
-                    <td><span class="badge" style="background:rgba(255,255,255,0.05);">${log.templateType}</span></td>
-                    <td><span class="badge ${log.status === 'success' ? 'badge-success' : 'badge-danger'}">${log.status}</span></td>
-                    <td>${new Date(log.sentAt).toLocaleString()}</td>
-                </tr>
-            `).join('');
-            this.refreshStats();
+        async deleteStudent(id) {
+            confirmAction('Delete', 'Remove candidate?', async () => {
+                showLoading();
+                await apiFetch(`/students/${id}`, { method: 'DELETE' });
+                this.loadStudents();
+                this.refreshStats();
+                hideLoading();
+            });
         },
 
         async submitAddStudent() {
             const name = document.getElementById('newStudentName').value;
             const email = document.getElementById('newStudentEmail').value;
-            if (!name || !email) return showToast('Name and Email required', 'info');
-
             showLoading();
             try {
-                await apiFetch('/students', {
-                    method: 'POST',
-                    body: JSON.stringify({ name, email, applicationStatus: 'active' })
-                });
+                await apiFetch('/students', { method: 'POST', body: JSON.stringify({ name, email, applicationStatus: 'active' }) });
                 closeModal('addStudentModal');
-                showToast('Student added successfully');
                 this.loadStudents();
                 this.refreshStats();
-            } catch (err) {
-                showToast('Failed to add student: ' + err.message, 'error');
-            } finally {
-                hideLoading();
-            }
+            } finally { hideLoading(); }
         },
 
-        async deleteStudent(id) {
-            confirmAction('Delete Student', 'Are you sure you want to remove this student from the database? This cannot be undone.', async () => {
-                showLoading();
-                await apiFetch(`/students/${id}`, { method: 'DELETE' });
-                hideLoading();
-                showToast('Student deleted successfully');
-                this.loadStudents();
-                this.refreshStats();
-            });
-        },
-
+        // --- TEMPLATES ---
         async loadTemplates() {
-            const templates = await apiFetch('/templates');
-            state.templates = templates;
-            const list = document.getElementById('tplList');
-            if (!list) return;
-
-            list.innerHTML = templates.map(t => `
-                <div class="nav-item ${state.selectedTemplate?._id === t._id ? 'active' : ''}" 
-                     style="margin-bottom: 5px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; cursor: pointer;" 
-                     onclick="window.dashboard.selectTemplate('${t._id}')">
+            const tpls = await apiFetch('/templates');
+            state.templates = tpls;
+            document.getElementById('tplList').innerHTML = tpls.map(t => `
+                <div class="tpl-item ${state.selectedTemplate?._id === t._id ? 'active' : ''}" onclick="window.dashboard.selectTemplate('${t._id}')">
                     ${t.name}
                 </div>
             `).join('');
 
-            const form = document.getElementById('tplForm');
-            if (!form) return;
-
-            form.onsubmit = async (e) => {
+            document.getElementById('tplForm').onsubmit = async (e) => {
                 e.preventDefault();
                 const data = {
                     type: document.getElementById('tplType').value,
@@ -357,13 +343,9 @@
                     hasAttachment: !!document.getElementById('tplPdfHtml').value
                 };
                 showLoading();
-                await apiFetch('/templates', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-                hideLoading();
-                alert('Template Configuration Synchronized! ✅');
+                await apiFetch('/templates', { method: 'POST', body: JSON.stringify(data) });
                 this.loadTemplates();
+                hideLoading();
             };
         },
 
@@ -374,73 +356,53 @@
             document.getElementById('tplType').value = t.type;
             document.getElementById('tplSubject').value = t.subject;
             document.getElementById('tplBody').value = t.body;
+            document.getElementById('pdfSection').classList.toggle('hidden', !t.htmlContent);
+            if (t.htmlContent) document.getElementById('tplPdfHtml').value = t.htmlContent;
             
-            const pdfSection = document.getElementById('pdfSection');
-            if (t.hasAttachment || t.htmlContent) {
-                pdfSection.classList.remove('hidden');
-                document.getElementById('tplPdfHtml').value = t.htmlContent || '';
-            } else {
-                pdfSection.classList.add('hidden');
-            }
-            this.loadTemplates(); 
+            // Update active state in UI without full reload
+            document.querySelectorAll('.tpl-item').forEach(el => {
+                el.classList.toggle('active', el.innerText.trim() === t.name);
+            });
         },
 
+        // --- EXTRAS ---
         async triggerBulkHold() {
-            confirmAction('Bulk Hold Distributions', 'This will send hold notifications to ALL candidates currently marked with "Hold" status. Proceed?', async () => {
+            confirmAction('Confirm', 'Trigger bulk hold?', async () => {
                 showLoading();
-                try {
-                    const result = await apiFetch('/send-bulk-hold', { method: 'POST' });
-                    showToast(result.message);
-                    this.refreshStats();
-                } catch (err) {
-                    showToast('Bulk trigger failed: ' + err.message, 'error');
-                } finally {
-                    hideLoading();
-                }
+                await apiFetch('/send-bulk-hold', { method: 'POST' });
+                this.refreshStats();
+                hideLoading();
             });
         },
 
         async triggerDailyMomentum() {
-            confirmAction('Trigger Daily Distribution', 'This will immediately send the hardcoded daily email to ALL active students. Continue?', async () => {
+            confirmAction('Run', 'Execute daily crawler?', async () => {
                 showLoading();
-                try {
-                    const result = await apiFetch('/trigger-daily-crawler', { method: 'POST' });
-                    showToast(result.message || `Success! Distributed to ${result.count} students! 🚀`);
-                    this.refreshStats();
-                } catch (err) {
-                    showToast('Manual trigger failed: ' + err.message, 'error');
-                } finally {
-                    hideLoading();
-                }
+                await apiFetch('/trigger-daily-crawler', { method: 'POST' });
+                this.refreshStats();
+                hideLoading();
             });
         },
 
         async loadLogs() {
             showLoading();
-            try {
-                const logs = await apiFetch('/logs');
-                const tbody = document.getElementById('logsTableBody');
-                if (!tbody) return;
-
+            const logs = await apiFetch('/logs');
+            const tbody = document.getElementById('logsTableBody');
+            if (tbody) {
                 tbody.innerHTML = logs.map(l => `
                     <tr>
                         <td><b>${l.recipientEmail}</b></td>
-                        <td><span class="badge" style="background:rgba(255,255,255,0.05);">${l.templateType}</span></td>
+                        <td>${l.templateType}</td>
                         <td><span class="badge ${l.status === 'success' ? 'badge-success' : 'badge-danger'}">${l.status}</span></td>
-                        <td style="color:var(--accent-rose); font-size: 11px;">${l.error || '-'}</td>
                         <td>${new Date(l.sentAt).toLocaleString()}</td>
                     </tr>
                 `).join('');
-            } finally {
-                hideLoading();
             }
-        },
-
-        refreshAllStudents() { this.loadStudents(); }
+            hideLoading();
+        }
     };
 
     window.dashboard = dashboard;
-    window.confirmAction = confirmAction;
     window.showModal = showModal;
     window.closeModal = closeModal;
     dashboard.init();
