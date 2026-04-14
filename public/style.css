@@ -229,7 +229,20 @@ td {
 .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); }
 .badge-danger { background: rgba(244, 63, 94, 0.1); color: var(--accent-rose); }
 
-/* Confirmation Modal (Center) */
+/* Confirmation Modal (Center) - High Priority */
+.confirm-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(12px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000; /* Higher than standard modals */
+    animation: fadeIn 0.3s ease;
+}
+
+/* Standard Modals */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -238,7 +251,7 @@ td {
     display: none;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 4000;
     animation: fadeIn 0.3s ease;
 }
 
@@ -277,7 +290,7 @@ td {
     position: fixed;
     bottom: 30px;
     right: 30px;
-    z-index: 2000;
+    z-index: 9000;
 }
 
 .toast {
@@ -307,7 +320,8 @@ td {
     align-items: center;
     gap: 12px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    z-index: 1100;
+    z-index: 9999; /* Highest priority */
+    pointer-events: none;
 }
 
 .spinner {

@@ -54,11 +54,21 @@
             'Content-Type': 'application/json'
         };
         const res = await fetch(endpoint, options);
+        
         if (res.status === 401) {
             localStorage.removeItem('adminToken');
             window.location.href = '/login.html';
+            return;
         }
-        return res.json();
+
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            return res.json();
+        } else {
+            const text = await res.text();
+            console.error('Non-JSON response received:', text);
+            return { success: false, message: text || `Server Error (${res.status})` };
+        }
     }
 
     const dashboard = {
@@ -129,22 +139,29 @@
 
         async loadStudents() {
             showLoading();
-            const students = await apiFetch('/users');
-            state.students = students;
-            const tbody = document.getElementById('studentTableBody');
-            tbody.innerHTML = students.map(s => `
-                <tr>
-                    <td><b>${s.name}</b></td>
-                    <td>${s.email}</td>
-                    <td><span class="badge ${s.status === 'sent' ? 'badge-success' : 'badge-warning'}">${s.status || 'idle'}</span></td>
-                    <td><span class="badge ${s.applicationStatus === 'active' ? 'badge-success' : 'badge-danger'}">${s.applicationStatus}</span></td>
-                    <td style="display: flex; gap: 8px;">
-                        <button class="btn btn-primary" style="padding: 5px 12px; font-size: 11px;" onclick="window.dashboard.openIndividualSendModal('${s._id}')">🚀 Send Mail</button>
-                        <button class="btn btn-secondary" style="padding: 5px 10px;" onclick="window.dashboard.deleteStudent('${s._id}')">🗑️</button>
-                    </td>
-                </tr>
-            `).join('');
-            hideLoading();
+            try {
+                const students = await apiFetch('/users');
+                state.students = students;
+                const tbody = document.getElementById('studentTableBody');
+                if (tbody) {
+                    tbody.innerHTML = students.map(s => `
+                        <tr>
+                            <td><b>${s.name}</b></td>
+                            <td>${s.email}</td>
+                            <td><span class="badge ${s.status === 'sent' ? 'badge-success' : 'badge-warning'}">${s.status || 'idle'}</span></td>
+                            <td><span class="badge ${s.applicationStatus === 'active' ? 'badge-success' : 'badge-danger'}">${s.applicationStatus}</span></td>
+                            <td style="display: flex; gap: 8px;">
+                                <button class="btn btn-primary" style="padding: 5px 12px; font-size: 11px;" onclick="window.dashboard.openIndividualSendModal('${s._id}')">🚀 Send Mail</button>
+                                <button class="btn btn-secondary" style="padding: 5px 10px;" onclick="window.dashboard.deleteStudent('${s._id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                showToast('Failed to load students: ' + err.message, 'error');
+            } finally {
+                hideLoading();
+            }
         },
 
         openIndividualSendModal(id) {
@@ -218,10 +235,10 @@
         },
 
         async submitIndividualSend() {
-            const type = document.getElementById('individualMailType').value;
-            if (!type) return showToast('Please select an email type', 'error');
+            const typeValue = document.getElementById('individualMailType').value;
+            if (!typeValue) return showToast('Please select an email type', 'error');
 
-            confirmAction('Confirm Dispatch', `Send the ${type.replace('_', ' ')} email to ${state.targetStudent.name}?`, async () => {
+            confirmAction('Confirm Dispatch', `Send the ${typeValue.replace('_', ' ')} email to ${state.targetStudent.name}?`, async () => {
                 const s = state.targetStudent;
                 const container = document.getElementById('dynamicFieldsContainer');
                 const inputs = container.querySelectorAll('input, textarea');
@@ -239,18 +256,21 @@
                         body: JSON.stringify({
                             email: s.email,
                             name: s.name,
-                            templateType: type,
+                            templateType: typeValue,
                             customVariables: customVariables
                         })
                     });
 
-                    if (res.success || (typeof res === 'string' && res.includes('sent'))) {
+                    // Flexible success check (backend returns string or object)
+                    const isSuccess = res.success || (typeof res === 'string' && res.toLowerCase().includes('sent')) || (res.message && res.message.toLowerCase().includes('sent'));
+
+                    if (isSuccess) {
                         closeModal('individualSendModal');
                         showToast('Email sent successfully! 🚀');
                         this.loadStudents();
                         this.refreshStats();
-                    } else if (res.error || res.message) {
-                        showToast('Failed to send: ' + (res.error || res.message), 'error');
+                    } else {
+                        showToast('Failed to send: ' + (res.error || res.message || 'Unknown Server Error'), 'error');
                     }
                 } catch (err) {
                     showToast('Communication Error: ' + err.message, 'error');
@@ -279,17 +299,23 @@
         async submitAddStudent() {
             const name = document.getElementById('newStudentName').value;
             const email = document.getElementById('newStudentEmail').value;
-            if (!name || !email) return alert('Name and Email required');
+            if (!name || !email) return showToast('Name and Email required', 'info');
 
             showLoading();
-            await apiFetch('/students', {
-                method: 'POST',
-                body: JSON.stringify({ name, email, applicationStatus: 'active' })
-            });
-            hideLoading();
-            closeModal('addStudentModal');
-            this.loadStudents();
-            this.refreshStats();
+            try {
+                await apiFetch('/students', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, email, applicationStatus: 'active' })
+                });
+                closeModal('addStudentModal');
+                showToast('Student added successfully');
+                this.loadStudents();
+                this.refreshStats();
+            } catch (err) {
+                showToast('Failed to add student: ' + err.message, 'error');
+            } finally {
+                hideLoading();
+            }
         },
 
         async deleteStudent(id) {

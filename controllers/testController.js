@@ -119,17 +119,21 @@ const executeSingleEmail = async (name, email, templateType = "notification", cu
             recipientEmail: email,
             templateType,
             status: "failure",
-            error: error.message
+            error: error.message || "Unknown error during email execution"
         });
 
         // Update status to failed
         user.status = "failed";
         await user.save();
-        console.error(`[Failure] ${templateType} Email failed for ${email} ❌:`, error.message);
+        console.error(`[Failure] ${templateType} Email failed for ${email} ❌:`, error.stack || error.message);
 
         // Cleanup on failure
         if (pdfPath && fs.existsSync(pdfPath)) {
-            fs.unlinkSync(pdfPath);
+            try {
+                fs.unlinkSync(pdfPath);
+            } catch (cleanupErr) {
+                console.warn(`[Cleanup] Failed to delete temp PDF: ${cleanupErr.message}`);
+            }
         }
         throw error;
     }
@@ -154,10 +158,10 @@ const sendEmail = async (req, res) => {
         }
 
         await executeSingleEmail(name, email, templateType, customVariables);
-        res.send("Saved + Email sent ✅");
+        res.status(200).json({ success: true, message: "Saved + Email sent ✅" });
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error ❌: " + error.message);
+        res.status(500).json({ success: false, message: "Error ❌: " + error.message });
     }
 };
 
@@ -168,10 +172,10 @@ const saveMultipleUsers = async (req, res) => {
         // insert many users
         await User.insertMany(users);
 
-        res.send("Multiple users saved ✅");
+        res.status(200).json({ success: true, message: "Multiple users saved ✅" });
     } catch (error) {
         console.log(error);
-        res.status(500).send("Error saving users ❌");
+        res.status(500).json({ success: false, message: "Error saving users ❌" });
     }
 };
 
@@ -332,45 +336,69 @@ const getScheduledEmails = async (req, res) => {
 // --- Dashboard & Management Endpoints ---
 
 const generatePDF = async (name, html) => {
-    const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
+    let browser;
+    try {
+        console.log(`[PDF] Launching browser for ${name}...`);
+        browser = await puppeteer.launch({
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-zygote',
+                '--disable-extensions',
+                '--hide-scrollbars',
+                '--disable-web-security'
+            ],
+            headless: 'new'
+        });
+        const page = await browser.newPage();
 
-    // If no HTML provided, use a fallback layout
-    const content = html || `
-        <div style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
-            <h1 style="color: #4A90E2;">Document</h1>
-            <p style="font-size: 18px;">Hi <b>${name}</b>, this is a generated document.</p>
-        </div>
-    `;
+        // If no HTML provided, use a fallback layout
+        const content = html || `
+            <div style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
+                <h1 style="color: #4A90E2;">Document</h1>
+                <p style="font-size: 18px;">Hi <b>${name}</b>, this is a generated document.</p>
+            </div>
+        `;
 
-    // Sanitize name for filename
-    const safeName = name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-    const fileName = `${safeName}_${Date.now()}.pdf`;
-    const tempDir = path.resolve(__dirname, "../temp_pdfs");
-    
-    // Ensure directory exists
-    if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
+        // Sanitize name for filename
+        const safeName = name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+        const fileName = `${safeName}_${Date.now()}.pdf`;
+        const tempDir = path.resolve(__dirname, "../temp_pdfs");
+        
+        // Ensure directory exists
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        const filePath = path.join(tempDir, fileName);
+
+        console.log(`[PDF] Setting content for ${name}...`);
+        await page.setContent(content, { waitUntil: 'load', timeout: 30000 });
+        
+        console.log(`[PDF] Generating file at: ${filePath}`);
+        await page.pdf({ 
+            path: filePath, 
+            format: "A4",
+            printBackground: true,
+            margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+        });
+
+        console.log(`[PDF] Document generated for ${name}.`);
+        return filePath;
+    } catch (err) {
+        console.error(`[PDF Error] Generation failed for ${name}: ${err.stack || err.message}`);
+        throw new Error(`PDF Generation failed: ${err.message}`);
+    } finally {
+        if (browser) {
+            try {
+                await browser.close();
+            } catch (closeErr) {
+                console.warn(`[PDF] Warning: Failed to close browser correctly: ${closeErr.message}`);
+            }
+        }
     }
-
-    const filePath = path.join(tempDir, fileName);
-
-    console.log(`[PDF] Setting content for ${name}...`);
-    await page.setContent(content);
-    
-    console.log(`[PDF] Generating file at: ${filePath}`);
-    await page.pdf({ 
-        path: filePath, 
-        format: "A4",
-        printBackground: true 
-    });
-
-    await browser.close();
-    console.log(`[PDF] Browser closed for ${name}.`);
-
-    return filePath;
 };
 
 // --- Template Management Endpoints ---
