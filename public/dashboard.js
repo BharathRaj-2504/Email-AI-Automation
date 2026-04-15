@@ -48,25 +48,30 @@
     };
 
     async function apiFetch(endpoint, options = {}) {
-        options.headers = {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
-        const res = await fetch(endpoint, options);
-        
-        if (res.status === 401) {
-            localStorage.removeItem('adminToken');
-            window.location.href = '/login.html';
-            return;
-        }
-
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-            return res.json();
-        } else {
-            const text = await res.text();
-            return { success: false, message: text || `Server Error (${res.status})` };
+        try {
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            const res = await fetch(endpoint, options);
+            
+            if (res.status === 401) {
+                localStorage.removeItem('adminToken');
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                throw new Error(error.error || `HTTP error! status: ${res.status}`);
+            }
+            
+            return await res.json();
+        } catch (error) {
+            console.error(`[API Fetch Error] ${endpoint}:`, error.message);
+            showToast(error.message || "Network error occurred", 'error');
+            return []; // Return empty array as fallback for list endpoints
         }
     }
 
@@ -120,10 +125,13 @@
                 this.refreshStats();
                 this.loadDashboardActivity();
                 this.initAiChat();
+            } else if (page === 'students') {
+                this.loadStudents();
+            } else if (page === 'templates') {
+                this.loadTemplates();
+            } else if (page === 'logs') {
+                this.loadLogs();
             }
-            if (page === 'students') this.loadStudents();
-            if (page === 'templates') this.loadTemplates();
-            if (page === 'logs') this.loadLogs();
         },
 
         async refreshStats() {
@@ -145,13 +153,18 @@
             const container = document.getElementById('recentLogsList');
             if (!container) return;
 
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<div style="opacity:0.5; text-align:center; padding: 20px;">No recent activity</div>';
+                return;
+            }
+
             container.innerHTML = logs.slice(0, 5).map(l => `
                 <div class="log-entry-compact">
                     <div class="top">
                         <span class="email">${l.recipientEmail}</span>
-                        <span class="status" style="color:${l.status === 'success' ? 'var(--accent-emerald)' : 'var(--accent-rose)'}">${l.status.toUpperCase()}</span>
+                        <span class="status" style="color:${l.status === 'success' ? 'var(--accent-emerald)' : 'var(--accent-rose)'}">${l.status?.toUpperCase() || 'UNKNOWN'}</span>
                     </div>
-                    <div style="opacity:0.6; font-size:10px;">${l.templateType} • ${new Date(l.sentAt).toLocaleTimeString()}</div>
+                    <div style="opacity:0.6; font-size:10px;">${l.templateType} • ${l.sentAt ? new Date(l.sentAt).toLocaleTimeString() : 'N/A'}</div>
                 </div>
             `).join('');
         },
@@ -225,7 +238,14 @@
             if (!container) return;
             const div = document.createElement('div');
             div.className = `message ${type}`;
-            div.innerHTML = content;
+            
+            // Simple markdown-to-HTML conversion for list and bold text
+            let processedContent = content
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Bold
+                .replace(/\n/g, '<br>') // Line breaks
+                .replace(/^- (.*)/gm, '• $1'); // Bullet points
+            
+            div.innerHTML = processedContent;
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         },
@@ -326,11 +346,30 @@
         async loadTemplates() {
             const tpls = await apiFetch('/templates');
             state.templates = tpls;
-            document.getElementById('tplList').innerHTML = tpls.map(t => `
-                <div class="tpl-item ${state.selectedTemplate?._id === t._id ? 'active' : ''}" onclick="window.dashboard.selectTemplate('${t._id}')">
-                    ${t.name}
-                </div>
-            `).join('');
+            const list = document.getElementById('tplList');
+            if (list) {
+                const getIcon = (type) => {
+                    if (type.includes('certificate')) return '🎓';
+                    if (type.includes('offer')) return '💼';
+                    if (type.includes('review')) return '🔍';
+                    if (type.includes('task')) return '🚀';
+                    if (type.includes('hold')) return '⏸️';
+                    if (type.includes('weekly')) return '🗓️';
+                    return '📝';
+                };
+
+                list.innerHTML = tpls.map(t => `
+                    <div class="tpl-item ${state.selectedTemplate?._id === t._id ? 'active' : ''}" 
+                         id="tpl-item-${t._id}"
+                         onclick="window.dashboard.selectTemplate('${t._id}')">
+                        <div class="item-icon">${getIcon(t.type)}</div>
+                        <div style="flex:1;">
+                            <b>${t.name}</b>
+                            <div style="font-size:10px; opacity:0.6;">${t.type}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
 
             document.getElementById('tplForm').onsubmit = async (e) => {
                 e.preventDefault();
@@ -351,52 +390,55 @@
 
         selectTemplate(id) {
             const t = state.templates.find(x => x._id === id);
+            if (!t) return;
             state.selectedTemplate = t;
+            
+            // UI: Update labels
+            document.getElementById('editorTitle').innerText = t.name;
+            document.getElementById('editorSubtitle').innerText = `Configuring the ${t.type} blueprint.`;
+
+            // Form data
             document.getElementById('tplName').value = t.name;
             document.getElementById('tplType').value = t.type;
             document.getElementById('tplSubject').value = t.subject;
             document.getElementById('tplBody').value = t.body;
-            document.getElementById('pdfSection').classList.toggle('hidden', !t.htmlContent);
-            if (t.htmlContent) document.getElementById('tplPdfHtml').value = t.htmlContent;
             
-            // Update active state in UI without full reload
-            document.querySelectorAll('.tpl-item').forEach(el => {
-                el.classList.toggle('active', el.innerText.trim() === t.name);
-            });
+            const pdfSection = document.getElementById('pdfSection');
+            const pdfHtml = document.getElementById('tplPdfHtml');
+            
+            if (t.type === 'certificate' || t.type === 'offer_letter' || t.htmlContent) {
+                pdfSection.classList.remove('hidden');
+                pdfHtml.value = t.htmlContent || '';
+            } else {
+                pdfSection.classList.add('hidden');
+            }
+            
+            // UI: Update active state in list
+            document.querySelectorAll('.tpl-item').forEach(el => el.classList.remove('active'));
+            const activeEl = document.getElementById(`tpl-item-${id}`);
+            if (activeEl) activeEl.classList.add('active');
         },
 
         // --- EXTRAS ---
-        async triggerBulkHold() {
-            confirmAction('Confirm', 'Trigger bulk hold?', async () => {
-                showLoading();
-                await apiFetch('/send-bulk-hold', { method: 'POST' });
-                this.refreshStats();
-                hideLoading();
-            });
-        },
 
-        async triggerDailyMomentum() {
-            confirmAction('Run', 'Execute daily crawler?', async () => {
-                showLoading();
-                await apiFetch('/trigger-daily-crawler', { method: 'POST' });
-                this.refreshStats();
-                hideLoading();
-            });
-        },
 
         async loadLogs() {
             showLoading();
             const logs = await apiFetch('/logs');
             const tbody = document.getElementById('logsTableBody');
             if (tbody) {
-                tbody.innerHTML = logs.map(l => `
-                    <tr>
-                        <td><b>${l.recipientEmail}</b></td>
-                        <td>${l.templateType}</td>
-                        <td><span class="badge ${l.status === 'success' ? 'badge-success' : 'badge-danger'}">${l.status}</span></td>
-                        <td>${new Date(l.sentAt).toLocaleString()}</td>
-                    </tr>
-                `).join('');
+                if (!logs || logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; opacity:0.5;">No history logs found in the database.</td></tr>';
+                } else {
+                    tbody.innerHTML = logs.map(l => `
+                        <tr>
+                            <td><b>${l.recipientEmail}</b></td>
+                            <td>${l.templateType}</td>
+                            <td><span class="badge ${l.status === 'success' ? 'badge-success' : 'badge-danger'}">${l.status}</span></td>
+                            <td>${l.sentAt ? new Date(l.sentAt).toLocaleString() : 'N/A'}</td>
+                        </tr>
+                    `).join('');
+                }
             }
             hideLoading();
         }

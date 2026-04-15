@@ -10,7 +10,7 @@ const routes = require("./routes/index"); // ✅ import
 app.use("/", routes); // ✅ connect routes
 
 const cronService = require("./services/cronService");
-const { executeBulkEmail, executeSingleEmail, executeDailyCrawler } = require("./controllers/testController");
+const { executeBulkEmail, executeSingleEmail } = require("./controllers/testController");
 const ScheduledEmail = require("./models/ScheduledEmail");
 const User = require("./models/User");
 
@@ -88,7 +88,6 @@ const reviewReminderLogic = async () => {
 // 🚀 Start Registered Jobs
 const workerMap = {
     'main_worker': mainWorkerLogic,
-    'daily_crawler': executeDailyCrawler,
     'review_reminder': reviewReminderLogic
 };
 

@@ -93,7 +93,6 @@
         <ul class="nav-menu">
             <li class="nav-item active" data-page="dashboard">🤖 Dashboard</li>
             <li class="nav-item" data-page="students">🎓 Students</li>
-            <li class="nav-item" data-page="actions">🚀 Workflows</li>
             <li class="nav-item" data-page="templates">🎨 Templates</li>
             <li class="nav-item" data-page="logs">📜 History</li>
         </ul>
@@ -154,7 +153,7 @@
                             <div class="chat-hints">
                                 <span>Add student Alex alex@gmail.com</span>
                                 <span>Send offer letter to Alex</span>
-                                <span>Check my latest delivery logs</span>
+                                <span>Send feedback to all students</span>
                             </div>
                         </div>
                     </div>
@@ -207,61 +206,69 @@
         </div>
     </template>
 
-    <template id="actionsTpl">
-        <div class="actions-grid">
-            <div class="card" style="grid-column: span 3; text-align: center; border: 1px dashed var(--primary);">
-                <h3>🚀 Integrated Workflows</h3>
-                <p>Use the <b>AI Dashboard</b> for natural language commands, or manage individual emails from the <b>Students</b> tab.</p>
-                <button class="btn btn-primary" onclick="window.dashboard.switchPage('dashboard')">Back to AI Hub</button>
-            </div>
-            
-            <div class="card highlight-rose">
-                <h3>⏸️ Bulk Hold Mail</h3>
-                <p>Place multiple applications on hold simultaneously.</p>
-                <button class="btn btn-danger" style="width: 100%;" onclick="window.dashboard.triggerBulkHold()">TRIGGER BULK HOLD</button>
-            </div>
-
-            <div class="card highlight-emerald">
-                <h3>📅 Daily Crawler</h3>
-                <p>Manually trigger the daily Mon-Fri automation cycle.</p>
-                <button class="btn btn-primary" style="width: 100%;" onclick="window.dashboard.triggerDailyMomentum()">🚀 RUN NOW</button>
-            </div>
-        </div>
-    </template>
 
     <template id="templatesTpl">
-        <div class="editor-container">
+        <div class="editor-container fade-in">
             <div class="card editor-card">
-                <h3>System Templates</h3>
+                <h3 style="margin-bottom: 5px;">AI Templates</h3>
+                <p style="font-size: 11px; opacity: 0.5; margin-bottom: 20px;">Select a blueprint to configure automation logic.</p>
                 <div id="tplList" class="tpl-list"></div>
+
+                <div class="tpl-help-card">
+                    <h4>Dynamic Variables</h4>
+                    <div id="varReference">
+                        <span class="var-tag">{{name}}</span>
+                        <span class="var-tag">{{email}}</span>
+                        <span class="var-tag">{{currentDate}}</span>
+                        <span class="var-tag">{{courseName}}</span>
+                        <span class="var-tag">{{jobTitle}}</span>
+                        <span class="var-tag">{{deadline}}</span>
+                    </div>
+                    <p style="font-size: 10px; margin-top: 10px; opacity: 0.6;">Use these placeholders in your subject or body.</p>
+                </div>
             </div>
-            <div class="card">
+
+            <div class="card" style="overflow-y: auto;">
                 <form id="tplForm">
+                    <div style="margin-bottom: 35px; border-bottom: 1px solid var(--glass-border); padding-bottom: 25px;">
+                        <h2 id="editorTitle" style="font-size: 28px; margin-bottom: 8px;">Select a Template</h2>
+                        <p id="editorSubtitle" style="font-size: 14px; opacity: 0.5;">Modify the email structure and logic below.</p>
+                    </div>
+
                     <div class="editor-grid">
                         <div class="field-group">
-                            <label>Name</label>
-                            <input type="text" id="tplName" required>
+                            <label>Display Name</label>
+                            <input type="text" id="tplName" required placeholder="e.g., Course Certificate">
                         </div>
                         <div class="field-group">
-                            <label>Type (Alias)</label>
-                            <input type="text" id="tplType" readonly style="opacity: 0.6;">
+                            <label>System Alias</label>
+                            <input type="text" id="tplType" readonly style="opacity: 0.4; cursor: not-allowed; background: rgba(0,0,0,0.2);">
                         </div>
                     </div>
+
                     <div class="field-group">
                         <label>Subject Line</label>
-                        <input type="text" id="tplSubject" required>
+                        <input type="text" id="tplSubject" required placeholder="Your certificate for {{courseName}}">
                     </div>
+
                     <div class="field-group">
-                        <label>Email Content</label>
-                        <textarea id="tplBody" style="height: 150px;"></textarea>
+                        <label>Email Markdown Body</label>
+                        <textarea id="tplBody" class="code-textarea" style="min-height: 280px;" placeholder="Dear {{name}}, ..."></textarea>
                     </div>
-                    <div id="pdfSection" class="hidden">
+
+                    <div id="pdfSection" class="hidden" style="margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 40px;">
                         <div class="field-group">
-                            <label>PDF Template HTML</label>
-                            <textarea id="tplPdfHtml" style="height: 200px; font-family: monospace;"></textarea>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px;">
+                                <label>PDF Attachment Blueprint (HTML)</label>
+                                <span style="font-size: 10px; color: var(--accent-emerald); font-weight: 600;">ENHANCED PDF ENGINE</span>
+                            </div>
+                            <textarea id="tplPdfHtml" class="code-textarea" style="min-height: 400px;"></textarea>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">💾 Update Configuration</button>
+
+                    <div style="margin-top: 40px; display: flex; gap: 15px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1; height: 50px;">💾 Save Configuration Changes</button>
+                    </div>
                 </form>
             </div>
         </div>

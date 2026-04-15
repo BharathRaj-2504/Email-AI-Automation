@@ -39,7 +39,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Extracted for reuse by worker and immediate send
 // Extracted for reuse by worker and immediate send
-const executeSingleEmail = async (name, email, templateType = "notification", customVariables = {}) => {
+const executeSingleEmail = async (name, email, templateType = "custom", customVariables = {}) => {
     // ✅ SAVE to database if not exists or just keep it as a record
     let user = await User.findOne({ email });
     if (!user) {
@@ -181,7 +181,7 @@ const saveMultipleUsers = async (req, res) => {
 
 // Extracted core logic so it can be used by BOTH Express routes and Cron jobs
 // Extracted core logic so it can be used by BOTH Express routes and Cron jobs
-const executeBulkEmail = async (templateType = "notification", customVariables = {}) => {
+const executeBulkEmail = async (templateType = "custom", customVariables = {}) => {
     try {
         const users = await User.find();
         const template = await EmailTemplate.findOne({ type: templateType });
@@ -290,7 +290,7 @@ const executeBulkEmail = async (templateType = "notification", customVariables =
 const sendBulkEmail = async (req, res) => {
     try {
         const { templateType, customVariables, scheduledAt } = req.body || {};
-        const type = templateType || "notification";
+        const type = templateType || "custom";
 
         if (scheduledAt) {
             const newTask = new ScheduledEmail({
@@ -635,28 +635,6 @@ const triggerFirstReview = async (req, res) => {
     }
 };
 
-const triggerTaskAllocation = async (req, res) => {
-    try {
-        const { userId } = req.body;
-        if (!userId) return res.status(400).json({ error: "User ID is required" });
-
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ error: "User not found" });
-
-        const { taskTitle, taskDescription, deadline } = user.metadata || {};
-        if (!taskTitle || !taskDescription || !deadline) {
-            return res.status(400).json({ 
-                error: "Incomplete task metadata. Task allocation requires 'taskTitle', 'taskDescription', and 'deadline' in the student profile." 
-            });
-        }
-
-        await executeSingleEmail(user.name, user.email, "task_allocation");
-        res.json({ success: true, message: `Task briefed and assigned successfully to ${user.name} 🚀` });
-    } catch (error) {
-        console.error("❌ Task Allocation Error:", error.message);
-        res.status(500).json({ error: "Task briefing failed: " + error.message });
-    }
-};
 
 const triggerHoldMail = async (req, res) => {
     try {
@@ -700,73 +678,8 @@ const updateUserStatus = async (req, res) => {
     }
 };
 
-const sendBulkHoldMail = async (req, res) => {
-    try {
-        const usersOnHold = await User.find({ applicationStatus: "hold" });
-        if (usersOnHold.length === 0) {
-            return res.status(404).json({ success: false, message: "No students on hold status found." });
-        }
 
-        const template = await EmailTemplate.findOne({ type: "hold_mail" });
-        if (!template) return res.status(404).json({ success: false, message: "Hold mail template not found." });
 
-        for (const user of usersOnHold) {
-            await executeSingleEmail(user.name, user.email, "hold_mail");
-        }
-
-        res.json({ success: true, message: `Bulk hold mail sent to ${usersOnHold.length} candidates.` });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-// --- Daily Crawler Core Logic (Shared for Cron & Manual) ---
-const executeDailyCrawler = async () => {
-    const now = new Date();
-    const day = now.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
-    
-    if (day === 0 || day === 6) {
-        return { message: "🗓️ [Daily Crawler] Weekend - Skipping automated distribution." };
-    }
-
-    const subjects = {
-        1: "Monday Momentum: Setting Your Weekly Goals",
-        2: "Technical Tuesday: Deep Dive into Your Progress",
-        3: "Mid-Week Sync: Stay Focused, Stay Ahead",
-        4: "Progress Thursday: Preparing for Review",
-        5: "Friday Finale: Reflect and Celebrate Accomplishments"
-    };
-
-    const subject = subjects[day];
-    console.log(`\n🗓️ [Daily Crawler] Triggering for: ${subject}`);
-
-    const activeUsers = await User.find({ applicationStatus: "active" });
-    if (activeUsers.length === 0) {
-        return { message: "No active students found. Skipping." };
-    }
-
-    for (const user of activeUsers) {
-        try {
-            await executeSingleEmail(user.name, user.email, "notification", { 
-                subject: subject,
-                currentDay: now.toLocaleDateString('en-US', { weekday: 'long' })
-            });
-        } catch (err) {
-            console.error(`[Daily Crawler] Failed for ${user.email}:`, err.message);
-        }
-    }
-    return { success: true, count: activeUsers.length };
-};
-
-// Express Wrapper for Manual Trigger
-const triggerDailyCrawler = async (req, res) => {
-    try {
-        const result = await executeDailyCrawler();
-        res.status(200).json(result);
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
 
 module.exports = { 
     sendEmail, 
@@ -774,8 +687,6 @@ module.exports = {
     sendBulkEmail, 
     executeBulkEmail, 
     executeSingleEmail,
-    executeDailyCrawler,
-    triggerDailyCrawler,
     getUsers,
     getScheduledEmails,
     upsertTemplate,
@@ -788,10 +699,9 @@ module.exports = {
     triggerOfferLetter,
     triggerCertificate,
     triggerFirstReview,
-    triggerTaskAllocation,
     triggerHoldMail,
     updateUserStatus,
     addStudent,
     deleteStudent,
-    sendBulkHoldMail
+    deleteStudent
 };

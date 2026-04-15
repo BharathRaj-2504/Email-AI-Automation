@@ -5,7 +5,7 @@ const emailTemplateSchema = new mongoose.Schema({
         type: String, 
         unique: true, 
         required: true,
-        enum: ["certificate", "offer_letter", "notification", "review", "custom", "welcome_mail", "task_assignment", "hold_mail", "rejection", "scholarship", "review_feedback", "weekly_schedule", "first_review", "task_allocation", "review_reminder", "hold_mail"]
+        enum: ["certificate", "offer_letter", "custom", "task_assignment", "hold_mail", "review_feedback", "weekly_schedule", "first_review", "review_reminder"]
     },
     name: {
         type: String,

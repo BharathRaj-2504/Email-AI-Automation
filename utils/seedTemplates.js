@@ -7,21 +7,21 @@ const templates = [
         type: "review_feedback",
         name: "Review Feedback",
         subject: "Your Performance Review Feedback - {{name}}",
-        body: "Hi {{name}},\n\nThank you for attending the review session. Here is your feedback: {{feedback}}\n\nYour next review is scheduled for {{nextReviewDate}}.\n\nBest regards,\nAutoEmail AI Team",
+        body: "Hi {{name}},\n\nThank you for attending the review session. Here is your feedback: {{feedback}}\n\nYour next review is scheduled for {{nextReviewDate}}.\n\nBest regards,\n{{companyName}} Team",
         hasAttachment: false
     },
     {
         type: "weekly_schedule",
         name: "Weekly Schedule",
         subject: "Your Training Schedule for Next Week",
-        body: "Hi {{name}},\n\nPlease find your personalized schedule for the upcoming week below:\n\n{{schedule}}\n\nMake sure to stay updated and follow the timeline.\n\nBest,\nAutoEmail AI Bot",
+        body: "Hi {{name}},\n\nPlease find your personalized schedule for the upcoming week below:\n\n{{schedule}}\n\nMake sure to stay updated and follow the timeline.\n\nBest,\n{{companyName}} Bot",
         hasAttachment: false
     },
     {
         type: "offer_letter",
         name: "Offer Letter",
-        subject: "Congratulations! Offer Letter from AutoEmail AI",
-        body: "Dear {{name}},\n\nWe are thrilled to offer you the position of {{jobTitle}} at AutoEmail AI. Your journey with us starts on {{joiningDate}}.\n\nPlease find your official offer letter attached to this email.\n\nWelcome aboard!",
+        subject: "Congratulations! Offer Letter from {{companyName}}",
+        body: "Dear {{name}},\n\nWe are thrilled to offer you the position of {{jobTitle}} at {{companyName}}. Your journey with us starts on {{joiningDate}}.\n\nPlease find your official offer letter attached to this email.\n\nWelcome aboard!",
         hasAttachment: true,
         htmlContent: `
             <div style="font-family: 'Outfit', sans-serif; padding: 50px; border: 10px solid #eee;">
@@ -32,7 +32,7 @@ const templates = [
                 <p>Joining Date: <b>{{joiningDate}}</b></p>
                 <hr>
                 <p>We are excited to have you join our team. This letter confirms our offer for the position stated above.</p>
-                <p>Regards,<br>HR Department | AutoEmail AI</p>
+                <p>Regards,<br>HR Department | {{companyName}}</p>
             </div>
         `
     },
@@ -50,21 +50,21 @@ const templates = [
                 <p style="font-size: 20px;">has successfully completed the program</p>
                 <h2 style="font-size: 30px; color: #333;">{{courseName}}</h2>
                 <p style="font-size: 18px;">Awarded on {{completionDate}}</p>
-                <p style="margin-top: 40px;">Verified by <b>AutoEmail AI Systems</b></p>
+                <p style="margin-top: 40px;">Verified by <b>{{companyName}} Systems</b></p>
             </div>
         `
     },
     {
         type: "first_review",
         name: "First Review Schedule",
-        subject: "Schedule for Your First Review - AutoEmail AI",
+        subject: "Schedule for Your First Review - {{companyName}}",
         body: "Hi {{name}},\n\nYour first review is scheduled for {{reviewDate}} at {{timeSlot}}. Please be prepared with your progress report.\n\nSettings: Online Meeting link will be shared 1 hour before.",
         hasAttachment: false
     },
     {
-        type: "task_allocation",
+        type: "task_assignment",
         name: "Task Assignment",
-        subject: "New Task Assigned: {{taskTitle}} - AutoEmail AI",
+        subject: "New Task Assigned: {{taskTitle}} - {{companyName}}",
         body: "Hi {{name}},\n\nYou have been assigned a new task: {{taskTitle}}.\n\nDescription: {{taskDescription}}\nDeadline: {{deadline}}\n\nCheck the attached PDF for more details.",
         hasAttachment: true,
         htmlContent: `
@@ -76,7 +76,7 @@ const templates = [
                     <hr>
                     <h3>Details</h3>
                     <p>{{taskDescription}}</p>
-                    <p style="margin-top: 20px; font-size: 12px; color: #64748b;">Project Managed by AutoEmail AI</p>
+                    <p style="margin-top: 20px; font-size: 12px; color: #64748b;">Project Managed by {{companyName}}</p>
                 </div>
             </div>
         `
@@ -84,22 +84,15 @@ const templates = [
     {
         type: "review_reminder",
         name: "Review Reminder",
-        subject: "Reminder: Upcoming Review Tomorrow - AutoEmail AI",
-        body: "Hi {{name}},\n\nThis is a reminder that your review session is scheduled for tomorrow ({{reviewDate}}).\n\nSee you there!",
+        subject: "Reminder: Your Upcoming Review - {{companyName}}",
+        body: "Hi {{name}},\n\nThis is a reminder that your review session is scheduled on {{reviewDate}}.\n\nSee you there!",
         hasAttachment: false
     },
     {
         type: "hold_mail",
         name: "On Hold Status Update",
         subject: "Update Regarding Your Application Status",
-        body: "Hi {{name}},\n\nThank you for your interest in AutoEmail AI. We wanted to inform you that your application is currently on hold.\n\nWe will get back to you if there are further updates.\n\nRegards,\nRecruitment Team | AutoEmail AI",
-        hasAttachment: false
-    },
-    {
-        type: "notification",
-        name: "Daily Momentum Update",
-        subject: "{{subject}}",
-        body: "Hi {{name}},\n\nThis is your automated momentum update for {{currentDay}}.\n\nStay productive and keep pushing boundaries!\n\nBest,\nAutoEmail AI Bot",
+        body: "Hi {{name}},\n\nThank you for your interest in {{companyName}}. We wanted to inform you that your application is currently on hold.\n\nWe will get back to you if there are further updates.\n\nRegards,\nRecruitment Team | {{companyName}}",
         hasAttachment: false
     }
 ];

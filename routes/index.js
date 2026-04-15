@@ -17,13 +17,10 @@ const {
     triggerOfferLetter,
     triggerCertificate,
     triggerFirstReview,
-    triggerTaskAllocation,
     triggerHoldMail,
     updateUserStatus,
     addStudent,
-    deleteStudent,
-    sendBulkHoldMail,
-    triggerDailyCrawler
+    deleteStudent
 } = require("../controllers/testController");
 const { login } = require("../controllers/authController");
 const { chat } = require("../controllers/aiController");
@@ -39,7 +36,6 @@ router.post("/send-bulk-email", authMiddleware, sendBulkEmail);
 router.get("/users", authMiddleware, getUsers);
 router.post("/students", authMiddleware, addStudent);
 router.delete("/students/:id", authMiddleware, deleteStudent);
-router.post("/send-bulk-hold", authMiddleware, sendBulkHoldMail);
 router.get("/scheduled-emails", authMiddleware, getScheduledEmails);
 
 
@@ -60,10 +56,8 @@ router.post("/mark-review-complete", authMiddleware, markReviewComplete);
 router.post("/trigger-offer-letter", authMiddleware, triggerOfferLetter);
 router.post("/trigger-certificate", authMiddleware, triggerCertificate);
 router.post("/trigger-first-review", authMiddleware, triggerFirstReview);
-router.post("/trigger-task-allocation", authMiddleware, triggerTaskAllocation);
 router.post("/trigger-hold-mail", authMiddleware, triggerHoldMail);
 router.patch("/users/:id/status", authMiddleware, updateUserStatus);
-router.post("/trigger-daily-crawler", authMiddleware, triggerDailyCrawler);
 
 // AI Chat Integration
 router.post("/ai/chat", authMiddleware, chat);
