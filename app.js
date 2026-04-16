@@ -85,17 +85,31 @@ const reviewReminderLogic = async () => {
     }
 };
 
+const connectDB = require("./config/db");
+
 // 🚀 Start Registered Jobs
 const workerMap = {
     'main_worker': mainWorkerLogic,
     'review_reminder': reviewReminderLogic
 };
 
-cronService.initCronJobs(workerMap);
+// Sequential Initialization
+const startApp = async () => {
+    try {
+        // 1. Connect Database
+        await connectDB();
+        
+        // 2. Initialize Workers
+        await cronService.initCronJobs(workerMap);
 
-app.listen(3000, () => {
-    console.log("Server started on port 3000");
-});
-const connectDB = require("./config/db");
+        // 3. Start Server
+        app.listen(3000, () => {
+            console.log("Server started on port 3000");
+        });
+    } catch (err) {
+        console.error("❌ Critical Startup Error:", err.message);
+        process.exit(1);
+    }
+};
 
-connectDB();
+startApp();

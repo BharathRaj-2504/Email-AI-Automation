@@ -272,6 +272,14 @@ const chat = async (req, res) => {
                                 dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
                                 variables.nextReviewDate = dayAfterTomorrow.toLocaleDateString();
                             }
+                        } else if (template === 'task_assignment') {
+                            if (!variables.taskTitle) variables.taskTitle = "Project Development Task";
+                            if (!variables.taskDescription) variables.taskDescription = "Detailed task requirements will be shared soon. Please begin research on the core concepts.";
+                            if (!variables.deadline) {
+                                const threeDaysLater = new Date();
+                                threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+                                variables.deadline = threeDaysLater.toLocaleDateString();
+                            }
                         } else if (template === 'weekly_schedule') {
                             if (!variables.schedule) {
                                 variables.schedule = `
